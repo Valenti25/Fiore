@@ -360,18 +360,21 @@ function start() {
 // ---------- เพลงประกอบ ----------
 const bgm = document.getElementById("bgm");
 bgm.volume = 0.6;
+const START_AT = 5; // ข้ามอินโทรครั้งแรก เริ่มที่วินาทีที่ 5
 
+let started = false;
 function tryPlay() {
-  bgm.play().catch(() => {/* ถูกบล็อก รอ interaction */});
+  if (!started) {                 // เซ็ตจุดเริ่มแค่ครั้งแรก จากนั้นเล่นวนปกติ
+    try { bgm.currentTime = START_AT; } catch (e) {}
+  }
+  bgm.play().then(() => { started = true; }).catch(() => {/* รอ interaction */});
 }
-// เพลงเปิดตลอด: พยายามเล่น และถ้าถูกหยุดก็ให้เล่นต่อทันที
-bgm.addEventListener("pause", () => { setTimeout(tryPlay, 0); });
-bgm.addEventListener("ended", tryPlay);
-// เบราว์เซอร์มักบล็อก autoplay -> เริ่มเล่นเมื่อมี interaction ใดๆ
-["pointerdown", "keydown", "touchstart", "click", "scroll"].forEach(ev =>
-  window.addEventListener(ev, tryPlay, { passive: true })
+// พยายามเล่นทันทีที่โหลด metadata เสร็จ
+bgm.addEventListener("loadedmetadata", tryPlay);
+// เผื่อ autoplay ถูกบล็อก -> เริ่มทันทีที่มี interaction ใดๆ (ครั้งเดียวพอ)
+["pointerdown", "keydown", "touchstart", "click", "scroll", "mousemove"].forEach(ev =>
+  window.addEventListener(ev, tryPlay, { passive: true, once: false })
 );
-document.addEventListener("visibilitychange", () => { if (!document.hidden) tryPlay(); });
 
 window.addEventListener("resize", start);
 start();
