@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Fiore</title>
+<style>
+  html, body {
+    margin: 0; padding: 0; height: 100%;
+    overflow: hidden;
+    background: #ffffff;
+    font-family: "Segoe UI", "Trebuchet MS", Arial, sans-serif;
+  }
+  #stage { display: block; width: 100vw; height: 100vh; }
+  .brand {
+    position: fixed; top: 22px; left: 50%; transform: translateX(-50%);
+    color: #d6417f; z-index: 20;
+    font-family: "Segoe UI", "Trebuchet MS", Georgia, serif;
+    font-size: 34px; font-weight: 700; letter-spacing: 4px;
+    font-style: italic;
+    text-shadow: 0 2px 10px rgba(214,65,127,0.15);
+    pointer-events: none; user-select: none;
+  }
+
+  /* กรอบรูป 2 รูป เหนือดอกไม้ */
+  #photos {
+    position: fixed; top: 5%; left: 50%; transform: translateX(-50%) translateY(-16px);
+    display: flex; gap: 4vw; z-index: 15;
+    opacity: 0; transition: opacity 0.9s ease, transform 0.9s ease;
+    pointer-events: none;
+  }
+  #photos.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  .frame {
+    width: 30vw; max-width: 220px; aspect-ratio: 3 / 4;
+    background: #fff;
+    border: 6px solid #fff;
+    border-radius: 16px;
+    box-shadow: 0 10px 30px rgba(214,65,127,0.28);
+    overflow: hidden;
+    position: relative;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .frame:first-child { transform: rotate(-5deg); }
+  .frame:last-child  { transform: rotate(5deg); }
+  .frame img {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%; object-fit: cover; display: block;
+    z-index: 2;
+  }
+  .frame .ph {
+    position: absolute; inset: 0; z-index: 1;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 6px;
+    background: linear-gradient(135deg, #ffd9e8, #ffe9f2);
+    color: #d6417f; font-size: 13px; text-align: center;
+  }
+  .frame .ph .big { font-size: 34px; }
+  @media (max-width: 600px) {
+    .frame { width: 38vw; }
+    .caption { font-size: 13px; }
+  }
+</style>
+</head>
+<body>
+  <div class="brand">Fiore</div>
+  <canvas id="stage"></canvas>
+
+  <div id="photos">
+    <div class="frame">
+      <div class="ph"><span class="big">💖</span><span>image.png</span></div>
+      <img src="image.png" alt="รูปที่ 1"
+           onload="this.classList.add('loaded')"
+           onerror="this.style.display='none'">
+    </div>
+    <div class="frame">
+      <div class="ph"><span class="big">📷</span><span>image copy.png</span></div>
+      <img src="image copy.png" alt="รูปที่ 2"
+           onload="this.classList.add('loaded')"
+           onerror="this.style.display='none'">
+    </div>
+  </div>
+
+  <audio id="bgm" loop autoplay preload="auto">
+    <source src="LANDOKMAI - เพลงรักเพลงแรก (Blooming) [Official MV] - Whattheduck (128k).mp3" type="audio/mpeg">
+  </audio>
+
+<script>
+const canvas = document.getElementById("stage");
+const ctx = canvas.getContext("2d");
+const photos = document.getElementById("photos");
+let W, H, DPR, S; // S = scale factor
+
+function resize() {
+  DPR = window.devicePixelRatio || 1;
+  W = window.innerWidth; H = window.innerHeight;
+  canvas.width = W * DPR; canvas.height = H * DPR;
+  canvas.style.width = W + "px"; canvas.style.height = H + "px";
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  // มือถือ/จอแคบ ให้ดอกใหญ่ขึ้น
+  S = (W < 700) ? W / 430 : Math.min(W, H) / 720;
+}
+resize();
+
+// ---------- easing ----------
+const easeOut = t => 1 - Math.pow(1 - t, 3);
+const easeInOut = t => t < 0.5 ? 4*t*t*t : 1 - Math.pow(-2*t+2,3)/2;
+const easeBack = t => { const c=1.70158, c3=c+1; return 1 + c3*Math.pow(t-1,3) + c*Math.pow(t-1,2); };
+function phase(t, a, b) { return Math.max(0, Math.min(1, (t - a) / (b - a))); }
+
+// ---------- โครงช่อดอก ----------
+let scene;
+function buildScene() {
+  const tieX = W / 2;
+  const tieY = H * 0.74;
+  const stemLen = H * 0.30;
+
+  const flowers = [
+    { angle: -26, len: stemLen * 0.92, color: "#ff5d8f", core: "#ffe14d", petals: 9,  size: 52, hi: "#ffd0e2" },
+    { angle:   0, len: stemLen * 1.06, color: "#b06bff", core: "#fff07a", petals: 10, size: 58, hi: "#e6d0ff" },
+    { angle:  24, len: stemLen * 0.90, color: "#ff9a4d", core: "#fff5a0", petals: 9,  size: 51, hi: "#ffe2c4" },
+  ];
+  flowers.forEach(f => {
+    const rad = (f.angle - 90) * Math.PI / 180;
+    f.tipX = tieX + Math.cos(rad) * f.len;
+    f.tipY = tieY + Math.sin(rad) * f.len;
+    f.cx = tieX + Math.cos(rad) * f.len * 0.5 - Math.sin(f.angle*Math.PI/180)*10*S;
+    f.cy = tieY + Math.sin(rad) * f.len * 0.5;
+  });
+
+  scene = { tieX, tieY, stemLen, flowers };
+}
+
+function drawWrap(t) {
+  const { tieX, tieY } = scene;
+  const grow = easeOut(phase(t, 0.0, 0.45));
+  if (grow <= 0) return;
+  const topW = 240 * S * grow;
+  const topY = tieY - 160 * S * grow;
+  ctx.save();
+  ctx.globalAlpha = 0.92;
+  const layers = [
+    { off: 0, col: "#ffb3d1" },
+    { off: 22*S, col: "#ffd9e8" },
+  ];
+  layers.forEach(l => {
+    ctx.fillStyle = l.col;
+    ctx.beginPath();
+    ctx.moveTo(tieX, tieY);
+    ctx.lineTo(tieX - topW + l.off*2, topY + l.off);
+    ctx.lineTo(tieX - topW*0.55, topY - 18*S);
+    ctx.lineTo(tieX + topW*0.55, topY - 18*S);
+    ctx.lineTo(tieX + topW - l.off*2, topY + l.off);
+    ctx.closePath();
+    ctx.fill();
+  });
+  ctx.restore();
+}
+
+function drawStemAndLeaves(f, t) {
+  const { tieX, tieY } = scene;
+  const grow = easeInOut(phase(t, 0.05, 0.55));
+  if (grow <= 0) return;
+  ctx.strokeStyle = "#3faf63";
+  ctx.lineWidth = 5.5 * S;
+  ctx.lineCap = "round";
+  ctx.beginPath();
+  ctx.moveTo(tieX, tieY);
+  const steps = 24;
+  for (let i = 1; i <= steps * grow; i++) {
+    const u = i / steps;
+    const x = (1-u)*(1-u)*tieX + 2*(1-u)*u*f.cx + u*u*f.tipX;
+    const y = (1-u)*(1-u)*tieY + 2*(1-u)*u*f.cy + u*u*f.tipY;
+    ctx.lineTo(x, y);
+  }
+  ctx.stroke();
+
+  const leafGrow = easeOut(phase(t, 0.25, 0.6));
+  if (leafGrow > 0) {
+    [[-1, 0.45], [1, 0.6]].forEach(([side, at]) => {
+      const bx = (1-at)*(1-at)*tieX + 2*(1-at)*at*f.cx + at*at*f.tipX;
+      const by = (1-at)*(1-at)*tieY + 2*(1-at)*at*f.cy + at*at*f.tipY;
+      const len = 46 * S * leafGrow;
+      ctx.save();
+      ctx.translate(bx, by);
+      ctx.rotate(side * 0.7 + (side<0?Math.PI:0));
+      ctx.fillStyle = "#46bd6c";
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.quadraticCurveTo(len*0.5, -len*0.4, len, 0);
+      ctx.quadraticCurveTo(len*0.5, len*0.4, 0, 0);
+      ctx.fill();
+      ctx.restore();
+    });
+  }
+}
+
+function drawFlowerHead(f, t) {
+  const bloom = easeBack(phase(t, 0.45, 0.9));
+  if (bloom <= 0) return;
+  const size = f.size * S * bloom;
+  ctx.save();
+  ctx.translate(f.tipX, f.tipY);
+
+  for (let k = 0; k < f.petals; k++) {
+    const a = (k / f.petals) * Math.PI * 2 + t * 0.2;
+    ctx.save();
+    ctx.rotate(a);
+    ctx.fillStyle = f.color;
+    ctx.beginPath();
+    ctx.ellipse(size * 0.62, 0, size * 0.5, size * 0.28, 0, 0, Math.PI*2);
+    ctx.fill();
+    ctx.fillStyle = f.hi;
+    ctx.globalAlpha = 0.5;
+    ctx.beginPath();
+    ctx.ellipse(size * 0.72, -size*0.05, size * 0.26, size * 0.12, 0, 0, Math.PI*2);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+    ctx.restore();
+  }
+  for (let k = 0; k < f.petals; k++) {
+    const a = (k / f.petals) * Math.PI * 2 + Math.PI / f.petals + t*0.2;
+    ctx.save();
+    ctx.rotate(a);
+    ctx.fillStyle = f.hi;
+    ctx.beginPath();
+    ctx.ellipse(size * 0.4, 0, size * 0.34, size * 0.2, 0, 0, Math.PI*2);
+    ctx.fill();
+    ctx.restore();
+  }
+  ctx.fillStyle = f.core;
+  ctx.beginPath();
+  ctx.arc(0, 0, size * 0.34, 0, Math.PI*2);
+  ctx.fill();
+  ctx.fillStyle = "rgba(180,120,20,0.35)";
+  for (let d = 0; d < 8; d++) {
+    const da = d/8 * Math.PI*2;
+    ctx.beginPath();
+    ctx.arc(Math.cos(da)*size*0.14, Math.sin(da)*size*0.14, size*0.05, 0, Math.PI*2);
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
+function drawRibbon(t) {
+  const { tieX, tieY } = scene;
+  const grow = easeOut(phase(t, 0.55, 0.95));
+  if (grow <= 0) return;
+  ctx.save();
+  ctx.fillStyle = "#ff477e";
+  ctx.beginPath();
+  ctx.moveTo(tieX - 36*S, tieY - 10*S);
+  ctx.lineTo(tieX + 36*S, tieY - 10*S);
+  ctx.lineTo(tieX + 23*S, tieY + 50*S);
+  ctx.lineTo(tieX - 23*S, tieY + 50*S);
+  ctx.closePath();
+  ctx.fill();
+
+  const bx = tieX, by = tieY - 2*S;
+  const s = grow;
+  ctx.fillStyle = "#ff2e6a";
+  ctx.beginPath();
+  ctx.moveTo(bx-8*S, by);
+  ctx.quadraticCurveTo(bx-30*S*s, by+55*S*s, bx-48*S*s, by+84*S*s);
+  ctx.lineTo(bx-25*S*s, by+86*S*s);
+  ctx.quadraticCurveTo(bx-10*S*s, by+46*S*s, bx+2*S, by);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(bx+8*S, by);
+  ctx.quadraticCurveTo(bx+30*S*s, by+55*S*s, bx+48*S*s, by+84*S*s);
+  ctx.lineTo(bx+25*S*s, by+86*S*s);
+  ctx.quadraticCurveTo(bx+10*S*s, by+46*S*s, bx-2*S, by);
+  ctx.fill();
+
+  const loop = 48*S*s;
+  ctx.fillStyle = "#ff5d8f";
+  [-1, 1].forEach(side => {
+    ctx.beginPath();
+    ctx.moveTo(bx, by);
+    ctx.quadraticCurveTo(bx + side*loop, by - loop*0.9, bx + side*loop*1.02, by - 2*S);
+    ctx.quadraticCurveTo(bx + side*loop, by + loop*0.9, bx, by);
+    ctx.fill();
+    ctx.fillStyle = "rgba(255,255,255,0.28)";
+    ctx.beginPath();
+    ctx.ellipse(bx + side*loop*0.55, by - loop*0.1, loop*0.22, loop*0.4, side*0.4, 0, Math.PI*2);
+    ctx.fill();
+    ctx.fillStyle = "#ff5d8f";
+  });
+  ctx.fillStyle = "#ff2e6a";
+  ctx.beginPath();
+  ctx.arc(bx, by, 13*S*Math.min(1,s*1.4), 0, Math.PI*2);
+  ctx.fill();
+  ctx.restore();
+}
+
+function drawSparkles(t) {
+  const a = phase(t, 0.6, 1);
+  if (a <= 0) return;
+  ctx.save();
+  scene.flowers.forEach((f, i) => {
+    for (let s = 0; s < 4; s++) {
+      const ang = (s/4)*Math.PI*2 + t*2 + i;
+      const r = (f.size*S) * (1.2 + 0.3*Math.sin(t*4+s));
+      const x = f.tipX + Math.cos(ang)*r;
+      const y = f.tipY + Math.sin(ang)*r;
+      ctx.globalAlpha = a * (0.4 + 0.4*Math.sin(t*5+s));
+      ctx.fillStyle = "#ff9ac2";
+      const sz = 2.8*S;
+      ctx.beginPath();
+      ctx.moveTo(x, y-sz*2); ctx.lineTo(x+sz*0.5,y-sz*0.5);
+      ctx.lineTo(x+sz*2,y); ctx.lineTo(x+sz*0.5,y+sz*0.5);
+      ctx.lineTo(x,y+sz*2); ctx.lineTo(x-sz*0.5,y+sz*0.5);
+      ctx.lineTo(x-sz*2,y); ctx.lineTo(x-sz*0.5,y-sz*0.5);
+      ctx.closePath(); ctx.fill();
+    }
+  });
+  ctx.restore();
+}
+
+// ---------- ลูปอนิเมชัน ----------
+const DURATION = 2600;
+let startTime = null, raf = null, idleFrom = 0, revealed = false;
+
+function render(now) {
+  if (!startTime) startTime = now;
+  const elapsed = now - startTime;
+  let t = Math.min(1, elapsed / DURATION);
+
+  ctx.clearRect(0, 0, W, H);
+  drawWrap(t);
+  scene.flowers.forEach(f => drawStemAndLeaves(f, t));
+  scene.flowers.forEach(f => drawFlowerHead(f, t));
+  drawRibbon(t);
+  drawSparkles(t);
+
+  if (t < 1) {
+    raf = requestAnimationFrame(render);
+  } else {
+    if (!revealed) { revealed = true; photos.classList.add("show"); } // โชว์รูปเมื่อดอกครบ
+    idleFrom = idleFrom || now;
+    const it = 1 + (now - idleFrom) / 1000;
+    ctx.clearRect(0,0,W,H);
+    drawWrap(1);
+    scene.flowers.forEach(f => drawStemAndLeaves(f, 1));
+    scene.flowers.forEach(f => drawFlowerHead(f, 1));
+    drawRibbon(1);
+    drawSparkles(it);
+    raf = requestAnimationFrame(render);
+  }
+}
+
+function start() {
+  cancelAnimationFrame(raf);
+  resize();
+  buildScene();
+  startTime = null; idleFrom = 0; revealed = false;
+  photos.classList.remove("show");
+  raf = requestAnimationFrame(render);
+}
+
+// ---------- เพลงประกอบ ----------
+const bgm = document.getElementById("bgm");
+bgm.volume = 0.6;
+
+function tryPlay() {
+  bgm.play().catch(() => {/* ถูกบล็อก รอ interaction */});
+}
+// เพลงเปิดตลอด: พยายามเล่น และถ้าถูกหยุดก็ให้เล่นต่อทันที
+bgm.addEventListener("pause", () => { setTimeout(tryPlay, 0); });
+bgm.addEventListener("ended", tryPlay);
+// เบราว์เซอร์มักบล็อก autoplay -> เริ่มเล่นเมื่อมี interaction ใดๆ
+["pointerdown", "keydown", "touchstart", "click", "scroll"].forEach(ev =>
+  window.addEventListener(ev, tryPlay, { passive: true })
+);
+document.addEventListener("visibilitychange", () => { if (!document.hidden) tryPlay(); });
+
+window.addEventListener("resize", start);
+start();
+tryPlay();
+</script>
+</body>
+</html>
