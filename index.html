@@ -3,15 +3,39 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Fiore</title>
+<title>White &amp; Green Bouquet</title>
 <style>
   html, body {
     margin: 0; padding: 0; height: 100%;
     overflow: hidden;
-    background: #ffffff;
+    background-color: #ffffff;
     font-family: "Segoe UI", "Trebuchet MS", Arial, sans-serif;
   }
-  #stage { display: block; width: 100vw; height: 100vh; }
+  body::before {
+    content: "";
+    position: fixed;
+    inset: -8px;
+    background: url("860332796_1459117246361692_7031942186990334519_n.jpg") center / cover no-repeat;
+    filter: blur(3px);
+    transform: scale(1.02);
+    z-index: 0;
+  }
+  body::after {
+    content: "";
+    position: fixed;
+    inset: 0;
+    background: linear-gradient(180deg, rgba(5, 18, 12, 0.08), rgba(8, 25, 17, 0.17));
+    pointer-events: none;
+    z-index: 1;
+  }
+  #stage {
+    position: relative;
+    z-index: 2;
+    display: block;
+    width: 100vw;
+    height: 100vh;
+  }
+  .brand, #photos { display: none !important; }
   .brand {
     position: fixed; top: 22px; left: 50%; transform: translateX(-50%);
     color: #d6417f; z-index: 20;
@@ -115,9 +139,9 @@ function buildScene() {
   const stemLen = H * 0.30;
 
   const flowers = [
-    { angle: -26, len: stemLen * 0.92, color: "#ff5d8f", core: "#ffe14d", petals: 9,  size: 52, hi: "#ffd0e2" },
-    { angle:   0, len: stemLen * 1.06, color: "#b06bff", core: "#fff07a", petals: 10, size: 58, hi: "#e6d0ff" },
-    { angle:  24, len: stemLen * 0.90, color: "#ff9a4d", core: "#fff5a0", petals: 9,  size: 51, hi: "#ffe2c4" },
+    { angle: -20, len: stemLen * 0.92, color: "#ffffff", core: "#b8d8a5", petals: 9,  size: 48, hi: "#edf7e8" },
+    { angle:   0, len: stemLen * 1.06, color: "#f7fbf5", core: "#8fbd79", petals: 10, size: 58, hi: "#ffffff" },
+    { angle:  20, len: stemLen * 0.90, color: "#ffffff", core: "#c8dfb8", petals: 9,  size: 47, hi: "#e5f2df" },
   ];
   flowers.forEach(f => {
     const rad = (f.angle - 90) * Math.PI / 180;
@@ -134,13 +158,13 @@ function drawWrap(t) {
   const { tieX, tieY } = scene;
   const grow = easeOut(phase(t, 0.0, 0.45));
   if (grow <= 0) return;
-  const topW = 240 * S * grow;
+  const topW = 190 * S * grow;
   const topY = tieY - 160 * S * grow;
   ctx.save();
-  ctx.globalAlpha = 0.92;
+  ctx.globalAlpha = 0.98;
   const layers = [
-    { off: 0, col: "#ffb3d1" },
-    { off: 22*S, col: "#ffd9e8" },
+    { off: 0, col: "#e9eee8" },
+    { off: 22*S, col: "#ffffff" },
   ];
   layers.forEach(l => {
     ctx.fillStyle = l.col;
@@ -209,6 +233,9 @@ function drawFlowerHead(f, t) {
     ctx.beginPath();
     ctx.ellipse(size * 0.62, 0, size * 0.5, size * 0.28, 0, 0, Math.PI*2);
     ctx.fill();
+    ctx.strokeStyle = "rgba(91, 139, 91, 0.32)";
+    ctx.lineWidth = 1.2 * S;
+    ctx.stroke();
     ctx.fillStyle = f.hi;
     ctx.globalAlpha = 0.5;
     ctx.beginPath();
@@ -225,13 +252,16 @@ function drawFlowerHead(f, t) {
     ctx.beginPath();
     ctx.ellipse(size * 0.4, 0, size * 0.34, size * 0.2, 0, 0, Math.PI*2);
     ctx.fill();
+    ctx.strokeStyle = "rgba(91, 139, 91, 0.22)";
+    ctx.lineWidth = 0.9 * S;
+    ctx.stroke();
     ctx.restore();
   }
   ctx.fillStyle = f.core;
   ctx.beginPath();
   ctx.arc(0, 0, size * 0.34, 0, Math.PI*2);
   ctx.fill();
-  ctx.fillStyle = "rgba(180,120,20,0.35)";
+  ctx.fillStyle = "rgba(55,110,65,0.28)";
   for (let d = 0; d < 8; d++) {
     const da = d/8 * Math.PI*2;
     ctx.beginPath();
@@ -246,7 +276,7 @@ function drawRibbon(t) {
   const grow = easeOut(phase(t, 0.55, 0.95));
   if (grow <= 0) return;
   ctx.save();
-  ctx.fillStyle = "#ff477e";
+  ctx.fillStyle = "#f4f7f2";
   ctx.beginPath();
   ctx.moveTo(tieX - 36*S, tieY - 10*S);
   ctx.lineTo(tieX + 36*S, tieY - 10*S);
@@ -257,7 +287,7 @@ function drawRibbon(t) {
 
   const bx = tieX, by = tieY - 2*S;
   const s = grow;
-  ctx.fillStyle = "#ff2e6a";
+  ctx.fillStyle = "#4f9a63";
   ctx.beginPath();
   ctx.moveTo(bx-8*S, by);
   ctx.quadraticCurveTo(bx-30*S*s, by+55*S*s, bx-48*S*s, by+84*S*s);
@@ -272,7 +302,7 @@ function drawRibbon(t) {
   ctx.fill();
 
   const loop = 48*S*s;
-  ctx.fillStyle = "#ff5d8f";
+  ctx.fillStyle = "#9fcfe2";
   [-1, 1].forEach(side => {
     ctx.beginPath();
     ctx.moveTo(bx, by);
@@ -283,9 +313,9 @@ function drawRibbon(t) {
     ctx.beginPath();
     ctx.ellipse(bx + side*loop*0.55, by - loop*0.1, loop*0.22, loop*0.4, side*0.4, 0, Math.PI*2);
     ctx.fill();
-    ctx.fillStyle = "#ff5d8f";
+    ctx.fillStyle = "#9fcfe2";
   });
-  ctx.fillStyle = "#ff2e6a";
+  ctx.fillStyle = "#76b8d2";
   ctx.beginPath();
   ctx.arc(bx, by, 13*S*Math.min(1,s*1.4), 0, Math.PI*2);
   ctx.fill();
@@ -303,7 +333,7 @@ function drawSparkles(t) {
       const x = f.tipX + Math.cos(ang)*r;
       const y = f.tipY + Math.sin(ang)*r;
       ctx.globalAlpha = a * (0.4 + 0.4*Math.sin(t*5+s));
-      ctx.fillStyle = "#ff9ac2";
+      ctx.fillStyle = "#b7d7ac";
       const sz = 2.8*S;
       ctx.beginPath();
       ctx.moveTo(x, y-sz*2); ctx.lineTo(x+sz*0.5,y-sz*0.5);
